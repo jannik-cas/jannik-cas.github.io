@@ -150,6 +150,27 @@ body {
   line-height: 1.7;
 }
 
+.card .education-institution {
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: 0.75rem;
+}
+
+.dissertation-link {
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.dissertation-link a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.dissertation-link a:hover,
+.dissertation-link a:focus-visible {
+  text-decoration: underline;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
