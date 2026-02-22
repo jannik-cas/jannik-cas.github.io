@@ -26,6 +26,7 @@ body {
   color: var(--color-text);
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .container {
@@ -98,10 +99,16 @@ body {
   transition: color 0.2s, border-color 0.2s, background-color 0.2s;
 }
 
-.social-links a:hover {
+.social-links a:hover,
+.social-links a:focus-visible {
   color: var(--color-accent);
   border-color: var(--color-accent);
   background-color: var(--color-accent-soft);
+}
+
+.social-links a:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 /* Sections */
