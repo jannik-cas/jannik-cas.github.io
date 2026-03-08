@@ -196,6 +196,24 @@ body {
   white-space: nowrap;
 }
 
+/* Project cards */
+
+.project-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.project-link:hover h3,
+.project-link:focus-visible h3 {
+  text-decoration: underline;
+}
+
+.project-meta {
+  margin-top: 0.75rem;
+}
+
 /* Footer */
 
 .footer {
