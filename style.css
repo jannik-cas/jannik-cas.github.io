@@ -241,7 +241,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  list-style-position: inside;
+  list-style: none;
   padding-left: 0;
 }
 
@@ -249,9 +249,15 @@ body {
   padding: 1.25rem 1.5rem;
 }
 
+.publication.card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .publication-title {
   font-weight: 600;
   margin-bottom: 0.25rem;
+  color: var(--color-text);
 }
 
 .publication-title a {
@@ -267,6 +273,7 @@ body {
 .publication-authors {
   font-size: 0.9rem;
   color: var(--color-text-muted);
+  margin-bottom: 0.15rem;
 }
 
 .publication-venue {
