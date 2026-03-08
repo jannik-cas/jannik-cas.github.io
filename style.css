@@ -235,10 +235,15 @@ a:focus-visible {
 /* Project cards */
 
 .project-link {
-  display: block;
+  display: flex;
+  flex-direction: column;
   text-decoration: none;
   color: inherit;
   cursor: pointer;
+}
+
+.project-link p {
+  flex: 1;
 }
 
 .project-link:hover h3,
@@ -247,7 +252,8 @@ a:focus-visible {
 }
 
 .project-meta {
-  margin-top: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
 }
 
 /* Publications */
