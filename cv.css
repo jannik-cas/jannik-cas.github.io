@@ -74,15 +74,34 @@ a:hover { text-decoration: underline; }
 }
 
 /* ── Two-column grid ──────────────────────────────────────── */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
 .cv-page {
   display: grid;
   grid-template-columns: 200px 1fr;
   min-height: 297mm;
+  position: relative;
+}
+
+/* Dark background column that always fills full height */
+.cv-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 200px;
+  background: var(--sidebar-bg);
+  z-index: 0;
 }
 
 /* ── Sidebar ──────────────────────────────────────────────── */
 .cv-sidebar {
-  background: var(--sidebar-bg);
+  position: relative;
+  z-index: 1;
   color: var(--sidebar-text);
   padding: 1.75rem 1.25rem;
   display: flex;
@@ -303,7 +322,6 @@ a:hover { text-decoration: underline; }
     margin: 0;
     box-shadow: none;
     border-radius: 0;
-    min-height: 0;
   }
 
   @page {
@@ -311,11 +329,8 @@ a:hover { text-decoration: underline; }
     margin: 0;
   }
 
-  .cv-sidebar {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
+  .cv-page::before,
+  .cv-sidebar,
   .cv-tags li {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
