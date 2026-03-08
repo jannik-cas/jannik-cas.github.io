@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jannik-cas.github.io/sitemap.xml
