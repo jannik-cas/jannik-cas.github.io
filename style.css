@@ -38,6 +38,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration: underline;
+}
+
 .container {
   max-width: var(--container-width);
   margin: 0 auto;
