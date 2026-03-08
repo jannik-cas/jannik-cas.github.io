@@ -1,0 +1,328 @@
+/* CV Print Stylesheet — shared by cv-en.html and cv-de.html */
+/* Modern two-column sidebar layout with photo */
+
+/* ── Reset & base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --accent: #38bdf8;
+  --accent-dark: #0ea5e9;
+  --sidebar-bg: #0f172a;
+  --sidebar-text: #e2e8f0;
+  --sidebar-muted: #94a3b8;
+  --text: #1e293b;
+  --text-light: #475569;
+  --border: #e2e8f0;
+  --bg: #ffffff;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.5;
+  font-size: 10pt;
+}
+
+a { color: var(--accent-dark); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Print button (screen only) ───────────────────────────── */
+.cv-print-btn {
+  display: none;
+}
+
+@media screen {
+  .cv-print-btn {
+    display: block;
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 100;
+    padding: .5rem 1.25rem;
+    background: var(--accent);
+    color: #0f172a;
+    border: none;
+    border-radius: 6px;
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    transition: background .2s, transform .1s;
+  }
+
+  .cv-print-btn:hover {
+    background: var(--accent-dark);
+    transform: translateY(-1px);
+  }
+
+  .cv-print-btn:active {
+    transform: translateY(0);
+  }
+}
+
+/* ── Screen preview ───────────────────────────────────────── */
+@media screen {
+  body { background: #f1f5f9; }
+  .cv-page {
+    max-width: 210mm;
+    margin: 2rem auto;
+    box-shadow: 0 4px 24px rgba(0,0,0,.15);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+}
+
+/* ── Two-column grid ──────────────────────────────────────── */
+.cv-page {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  min-height: 297mm;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────── */
+.cv-sidebar {
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  padding: 1.75rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cv-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--accent);
+  display: block;
+  margin: 0 auto .25rem;
+}
+
+.cv-sidebar h2 {
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--accent);
+  margin-bottom: .4rem;
+  padding-bottom: .2rem;
+  border-bottom: 1px solid rgba(56, 189, 248, .3);
+}
+
+/* ── Sidebar contact ──────────────────────────────────────── */
+.cv-contact {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  font-size: .8rem;
+  color: var(--sidebar-muted);
+}
+
+.cv-contact li {
+  display: flex;
+  align-items: flex-start;
+  gap: .4rem;
+  line-height: 1.35;
+}
+
+.cv-contact svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cv-contact a {
+  color: var(--sidebar-muted);
+}
+
+.cv-contact a:hover {
+  color: var(--accent);
+}
+
+/* ── Sidebar skills (tag pills) ───────────────────────────── */
+.cv-sidebar-section { }
+
+.cv-skill-category {
+  margin-bottom: .6rem;
+}
+
+.cv-skill-category h3 {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--sidebar-text);
+  margin-bottom: .25rem;
+}
+
+.cv-tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem;
+}
+
+.cv-tags li {
+  font-size: .65rem;
+  background: rgba(56, 189, 248, .15);
+  color: var(--accent);
+  padding: .1rem .4rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* ── Sidebar languages ────────────────────────────────────── */
+.cv-lang-list {
+  list-style: none;
+  font-size: .8rem;
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+
+.cv-lang-list span {
+  color: var(--sidebar-muted);
+  font-size: .75rem;
+}
+
+/* ── Main content ─────────────────────────────────────────── */
+.cv-main {
+  padding: 1.75rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+
+/* ── Main header ──────────────────────────────────────────── */
+.cv-main-header {
+  margin-bottom: 1rem;
+  padding-bottom: .75rem;
+  border-bottom: 2px solid var(--accent);
+}
+
+.cv-main-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.cv-main-header .cv-title {
+  font-size: 1rem;
+  color: var(--accent-dark);
+  font-weight: 600;
+  margin-top: .15rem;
+}
+
+/* ── Main sections ────────────────────────────────────────── */
+.cv-section {
+  margin-bottom: 1rem;
+}
+
+.cv-section h2 {
+  font-size: .85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--accent-dark);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: .15rem;
+  margin-bottom: .5rem;
+}
+
+/* ── Timeline entries ─────────────────────────────────────── */
+.cv-entry {
+  margin-bottom: .6rem;
+  padding-left: .75rem;
+  border-left: 2px solid var(--border);
+}
+
+.cv-entry:last-child {
+  margin-bottom: 0;
+}
+
+.cv-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.cv-entry-header h3 {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cv-date {
+  font-size: .75rem;
+  color: var(--text-light);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.cv-org {
+  font-size: .8rem;
+  color: var(--text-light);
+  margin-bottom: .1rem;
+}
+
+.cv-entry p {
+  font-size: .8rem;
+  color: var(--text-light);
+}
+
+.cv-entry ul {
+  list-style: none;
+  padding: 0;
+  font-size: .8rem;
+}
+
+.cv-entry ul li {
+  position: relative;
+  padding-left: .85rem;
+}
+
+.cv-entry ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: .55em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent-dark);
+}
+
+/* ── Print ────────────────────────────────────────────────── */
+@media print {
+  html { font-size: 10pt; }
+  body { background: white; }
+
+  .cv-page {
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
+    min-height: 0;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  .cv-sidebar {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .cv-tags li {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .cv-section  { break-inside: avoid; }
+  .cv-entry    { break-inside: avoid; }
+
+  a { color: inherit; }
+}
