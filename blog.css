@@ -263,6 +263,106 @@
   padding: 0;
 }
 
+/* Callout variants */
+
+.callout-warn {
+  background-color: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  border-left: 4px solid #fbbf24;
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.callout-warn p {
+  margin-bottom: 0;
+  color: var(--color-text);
+}
+
+.callout-warn code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.callout-success {
+  background-color: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-left: 4px solid #4ade80;
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.callout-success p {
+  margin-bottom: 0;
+  color: var(--color-text);
+}
+
+.callout-success code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* TLDR box */
+
+.tldr {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(96, 165, 250, 0.05));
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.tldr::before {
+  content: "TL;DR";
+  display: inline-block;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  padding: 0.2em 0.6em;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+}
+
+.tldr p {
+  margin-bottom: 0.5rem;
+  color: var(--color-text);
+}
+
+.tldr p:last-child {
+  margin-bottom: 0;
+}
+
+.tldr code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* Aside / tangent */
+
+.aside {
+  border-left: 2px solid var(--color-border);
+  padding-left: 1.25rem;
+  margin: 1.5rem 0;
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+}
+
+.aside p {
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.aside p:last-child {
+  margin-bottom: 0;
+}
+
 /* Diagram blocks */
 
 .diagram {
@@ -272,6 +372,24 @@
   line-height: 1.5;
   color: var(--color-text-muted);
   margin-bottom: 1.25rem;
+}
+
+/* Key point highlight */
+
+.key-point {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+  text-align: center;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.key-point strong {
+  color: var(--color-accent);
 }
 
 /* Article footer */

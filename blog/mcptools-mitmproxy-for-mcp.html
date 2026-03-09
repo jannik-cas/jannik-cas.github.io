@@ -30,7 +30,7 @@
 
   <header class="article-header">
     <div class="container">
-      <h1>I Built mitmproxy for MCP &mdash; Because Debugging MCP Servers Shouldn't Require Print Statements</h1>
+      <h1>I Built mitmproxy for MCP</h1>
       <div class="article-meta">
         <time>March 9, 2026</time>
         <span>&middot;</span>
@@ -44,48 +44,44 @@
   <main id="main" class="container">
     <article class="article">
 
-      <p>Last month I lost 45 minutes to a typo. An environment variable in an MCP config. That's it. A typo. I couldn't tell because MCP gives you absolutely nothing when things go wrong &mdash; no errors, no logs, just... silence. So I built a tool to make sure that never happens again.</p>
+      <div class="tldr">
+        <p>MCP has zero observability. When something breaks, you get silence. I built <code>mcptools</code> &mdash; five commands (<code>doctor</code>, <code>inspect</code>, <code>proxy</code>, <code>record</code>, <code>replay</code>) that give you actual visibility into what your MCP servers are doing. One <code>pip install</code>, works with any IDE.</p>
+      </div>
 
-      <p>Everything below runs against real MCP servers. You can follow along if you want &mdash; takes about 5 minutes.</p>
+      <p>Last month I lost 45 minutes to a typo. Not a subtle bug. Not a race condition. A typo in an environment variable name. <code>GITHUB_TOKE</code> instead of <code>GITHUB_TOKEN</code>.</p>
 
-      <h2>How I ended up here</h2>
+      <p>I couldn't tell because MCP gives you absolutely nothing when things go wrong. No error message. No log line. Just a tool that should exist and doesn't. Your IDE won't mention it. The server won't complain. You're on your own with a JSON config file and your best guess.</p>
 
-      <p>I was wiring up three MCP servers for a side project. Two worked. The third one just... didn't. No error. No crash. Nothing in the IDE. Just a tool that should have been there and wasn't.</p>
+      <p>Forty-five minutes of my life, gone. Over a missing N.</p>
 
-      <p>My debugging process, roughly:</p>
+      <h2>The spiral</h2>
+
+      <p>I was setting up three MCP servers for a side project. Two worked immediately. The third? Silent failure. And my debugging process was... not great:</p>
 
 <pre class="terminal" data-title="my-actual-debugging-process.txt">
 1. Re-read the config JSON for the 12th time
 2. Restart Claude Desktop
-3. Wait 30 seconds
+3. Wait 30 seconds for it to boot
 4. Still broken
 5. Add print() to the server code
-6. Realize prints go to stdout and break the JSON-RPC stream
-7. Redirect to stderr
-8. Restart again
-9. Typo in the env var name
+6. Remember that prints go to stdout and <span class="code-red">break the JSON-RPC stream</span>
+7. Redirect to stderr, restart again
+8. Stare at logs, see nothing useful
+9. Finally spot the typo in the env var name
 10. <span class="code-red code-bold">45 minutes gone</span>
 </pre>
 
-      <p>A typo. <code>GITHUB_TOKE</code> instead of <code>GITHUB_TOKEN</code>. Forty-five minutes.</p>
+      <p>That last step is what did it. Not the bug itself &mdash; the fact that I had zero tools to find it. If I'd been debugging an HTTP API, I'd open devtools and see the failing request in two seconds. With MCP? You're blind.</p>
 
-      <p>The thing that got me wasn't even the bug. It was that MCP gives you <em>nothing</em> to work with. No way to see what your IDE is sending. No way to check if the server even starts. You're just staring at a JSON config file hoping you'll spot the problem before your coffee goes cold.</p>
+      <p>I built the thing I kept wishing existed. It took a weekend. Honestly should have done it sooner.</p>
 
-      <p>So I built the thing I kept wishing existed.</p>
+      <h2><code>mcptools doctor</code></h2>
 
-      <h2>Install</h2>
+      <p>This is the one that would have saved me those 45 minutes. It reads your MCP config, spins up every server, does the full handshake, and tells you what's healthy and what's broken.</p>
 
-<pre class="terminal" data-title="Terminal">
-<span class="code-dim">$</span> pip install git+https://github.com/jannik-cas/mcptools.git
-</pre>
+      <p>Here's a config with three servers &mdash; two that work, one that's intentionally busted:</p>
 
-      <p>That's the whole setup. Let me show you what it does.</p>
-
-      <h2><code>mcptools doctor</code> &mdash; find out what's broken</h2>
-
-      <p>Here's a config with three servers. Two work, one is intentionally broken. Save it as <code>test_config.json</code> or grab the one from the repo:</p>
-
-<pre class="terminal" data-title="test_config.json">
+<pre class="terminal" data-title="examples/demo_config.json">
 {
   "<span class="code-cyan">mcpServers</span>": {
     "<span class="code-green">fetch</span>": {
@@ -104,8 +100,6 @@
 }
 </pre>
 
-      <p>Run it:</p>
-
 <pre class="terminal" data-title="Terminal">
 <span class="code-dim">$</span> mcptools doctor --config examples/demo_config.json
 
@@ -119,17 +113,15 @@
 Summary: <span class="code-green">2 healthy</span>, <span class="code-red">1 error</span>
 </pre>
 
-      <p>Two seconds. It found the broken server, told me exactly what's wrong, and even told me how to fix it.</p>
-
-      <p>Under the hood, <code>doctor</code> actually starts each server process, does the full MCP handshake, queries capabilities, and measures how long it all takes. So it catches the stuff that's hard to spot manually &mdash; typos in commands, unset env vars, servers that start but don't respond to MCP, slow servers, init failures.</p>
+      <p>Two seconds. Found the problem, told me what's wrong, suggested a fix. Under the hood it actually starts each server process, does the full MCP handshake, queries capabilities, and measures latency. So it catches the stuff that's hard to spot by staring at JSON &mdash; typos in commands, missing env vars, servers that start but don't speak MCP, slow startups, init crashes.</p>
 
       <div class="callout">
-        <p><strong>Try it on your own setup.</strong> If you use Claude Desktop: <code>mcptools doctor --config ~/.claude/claude_desktop_config.json</code>. Cursor: <code>mcptools doctor --config ~/.cursor/mcp.json</code>. Or just run <code>mcptools doctor</code> without arguments &mdash; it'll look in the usual places for Claude Desktop, Cursor, VS Code, and Windsurf.</p>
+        <p><strong>Try it on your setup.</strong> Claude Desktop: <code>mcptools doctor --config ~/.claude/claude_desktop_config.json</code>. Cursor: <code>mcptools doctor --config ~/.cursor/mcp.json</code>. Or just <code>mcptools doctor</code> with no args &mdash; it auto-detects configs for Claude Desktop, Cursor, VS Code, and Windsurf.</p>
       </div>
 
-      <h2><code>mcptools inspect</code> &mdash; see what a server offers</h2>
+      <h2><code>mcptools inspect</code></h2>
 
-      <p>Say you found an MCP server on GitHub and want to know what it actually does before wiring it into your IDE. What tools? What parameters?</p>
+      <p>You found an MCP server on GitHub. The README looks promising but is three months out of date. What tools does it <em>actually</em> expose? What are the parameter types? Is that field required or optional?</p>
 
 <pre class="terminal" data-title="Terminal">
 <span class="code-dim">$</span> mcptools inspect uvx mcp-server-fetch
@@ -149,9 +141,9 @@ Summary: <span class="code-green">2 healthy</span>, <span class="code-red">1 err
           its contents
 </pre>
 
-      <p>One tool, one prompt, all the parameter types laid out. The <code>*</code> means required. No more guessing from README examples that may or may not be up to date.</p>
+      <p>The <code>*</code> means required. One tool, one prompt, all the types laid out. No guessing from README examples that were last updated when the server had half as many features.</p>
 
-      <p>Works with anything that speaks MCP over stdio &mdash; Python, Node, Go, whatever:</p>
+      <p>Works with anything that speaks MCP over stdio:</p>
 
 <pre class="terminal" data-title="Terminal">
 <span class="code-dim">$</span> mcptools inspect uvx mcp-server-time
@@ -160,14 +152,14 @@ Summary: <span class="code-green">2 healthy</span>, <span class="code-red">1 err
 <span class="code-dim">$</span> mcptools inspect node build/index.js
 </pre>
 
-      <h2><code>mcptools proxy</code> &mdash; watch the traffic</h2>
+      <h2><code>mcptools proxy</code></h2>
 
-      <p>This is the one I use the most. <code>mcptools proxy</code> sits between your IDE and the MCP server, like a wireshark for MCP. Every JSON-RPC message, both directions, with timing.</p>
+      <p>This is the one I reach for most. It sits between your IDE and the MCP server &mdash; a transparent man-in-the-middle. Every JSON-RPC message, both directions, with timing.</p>
 
 <pre class="diagram">
 Your IDE (Claude Code / Cursor / Windsurf)
     <span class="code-cyan">&darr;</span> stdin/stdout
-<span class="code-yellow code-bold">mcptools proxy</span>  &larr;  <span class="code-dim">sees everything</span>
+<span class="code-yellow code-bold">mcptools proxy</span>  &larr;  <span class="code-dim">intercepts everything</span>
     <span class="code-cyan">&darr;</span> stdin/stdout
 MCP Server
 </pre>
@@ -184,11 +176,15 @@ MCP Server
 <span class="code-green">&lt;&lt;&lt; tools/call</span>
 </pre>
 
-      <p>That's the <code>--no-tui</code> log mode. By default it opens a full TUI dashboard with a live message table, latency per call, error highlighting, stats, and a detail panel where you can click any row to see the raw JSON-RPC payload. Honestly, just seeing the latency numbers next to each call has been worth the whole project for me.</p>
+      <p>That's the <code>--no-tui</code> log mode. Drop the flag and you get a full TUI dashboard &mdash; live message table, latency per call, error highlighting, stats, and a detail panel where you can click any row to see the raw JSON-RPC payload.</p>
 
-      <h2><code>mcptools record</code> + <code>replay</code> &mdash; capture sessions</h2>
+      <div class="aside">
+        <p>Honestly, just seeing latency numbers next to each call changed how I think about MCP servers. Some of them are <em>way</em> slower than you'd expect. The GitHub MCP server takes 3+ seconds just to initialize &mdash; it has 35 tools, and the handshake gets heavy. Good to know before you wonder why Claude is taking forever to respond.</p>
+      </div>
 
-      <p>Sometimes you need to show someone else what happened. Or reproduce something that only happens when you're not looking at the logs. Record captures everything to JSON, replay plays it back.</p>
+      <h2><code>mcptools record</code> + <code>replay</code></h2>
+
+      <p>Sometimes you need to show someone else what happened. Or you're chasing a bug that only shows up when the moon is full and you're not looking at the logs.</p>
 
 <pre class="terminal" data-title="Recording a session">
 <span class="code-dim">$</span> mcptools record --config ~/.claude/claude_desktop_config.json -o debug_session.json
@@ -225,45 +221,23 @@ MCP Server
 <span class="code-dim">+3.3s</span> <span class="code-green">&lt;&lt;&lt; tools/call</span>
 </pre>
 
-      <p><strong>Replay only tool calls at 2x speed:</strong></p>
+      <p>You can also filter and speed up: <code>mcptools replay debug_session.json --speed 2 --filter "tools/*"</code></p>
 
-<pre class="terminal" data-title="Terminal">
-<span class="code-dim">$</span> mcptools replay debug_session.json --speed 2 --filter "tools/*"
-</pre>
+      <p>The JSON has timestamps, directions, full payloads, latency &mdash; everything you'd want in a bug report. Attach it to a GitHub issue instead of "it doesn't work" with a screenshot.</p>
 
-      <p>The JSON file has timestamps, directions, full payloads, latency &mdash; everything you'd want in a bug report. Way better than "it didn't work" with a screenshot of your IDE.</p>
+      <h2>A real debugging session</h2>
 
-      <h2>Putting it all together: a real debugging session</h2>
+      <p>Last week a GitHub MCP server kept timing out. Here's the actual workflow I used to pin it down.</p>
 
-      <p>Here's how I actually used these tools last week when a GitHub MCP server kept timing out.</p>
-
-      <h3>Step 1: Is it even connecting?</h3>
-
-<pre class="terminal" data-title="Terminal">
+<pre class="terminal" data-title="Step 1: Is it even alive?">
 <span class="code-dim">$</span> mcptools doctor --server github
 
   Checking github...  <span class="code-yellow">&#9888;</span> 35 tools &mdash; <span class="code-yellow">Slow response (3200ms)</span>
 </pre>
 
-      <p>It connects, but 3.2 seconds for an init? That's suspicious.</p>
+      <p>OK so it connects, but 3.2 seconds for an init is a lot. 35 tools. Noted.</p>
 
-      <h3>Step 2: What's in there?</h3>
-
-<pre class="terminal" data-title="Terminal">
-<span class="code-dim">$</span> mcptools inspect uvx mcp-server-github
-
-<span class="code-blue">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; MCP Server &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
-<span class="code-blue">&#9474;</span> <span class="code-bold">github-mcp-server</span>                                  <span class="code-blue">&#9474;</span>
-<span class="code-blue">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</span>
-                         Tools (<span class="code-yellow">35</span>)
-  ...
-</pre>
-
-      <p>35 tools. OK, that explains the slow init &mdash; probably doing a lot of work at startup. But the real issue was the timeout during use.</p>
-
-      <h3>Step 3: Watch what's actually happening</h3>
-
-<pre class="terminal" data-title="Terminal">
+<pre class="terminal" data-title="Step 2: Watch the live traffic">
 <span class="code-dim">$</span> mcptools proxy --server github --no-tui
 
 <span class="code-cyan">&gt;&gt;&gt; initialize</span>                           <span class="code-red">3205ms</span>
@@ -274,25 +248,25 @@ MCP Server
   <span class="code-red">ERROR: Request timed out after 30s</span>
 </pre>
 
-      <p>There it is. The <code>tools/call</code> times out after 30 seconds. Now I know it's not a config issue &mdash; the server starts fine, lists tools fine, but chokes on the actual call. Probably a token scope issue or a rate limit. Either way, I know exactly where to look now.</p>
+      <p>There it is. Starts fine, lists tools fine, but chokes on the actual <code>tools/call</code>. So it's not a config issue &mdash; it's the server failing at execution time. Probably a token scope thing or a rate limit.</p>
 
-      <h3>Step 4: Capture it for the bug report</h3>
-
-<pre class="terminal" data-title="Terminal">
+<pre class="terminal" data-title="Step 3: Capture for the bug report">
 <span class="code-dim">$</span> mcptools record --server github -o github_timeout.json
-<span class="code-dim"># reproduce the issue, then Ctrl+C</span>
+<span class="code-dim"># reproduce the timeout, Ctrl+C</span>
 
 <span class="code-green">Session saved:</span> github_timeout.json
 <span class="code-dim">8 messages recorded</span>
 </pre>
 
-      <p>Attach <code>github_timeout.json</code> to the issue. The maintainer gets the full trace &mdash; what was sent, what came back, timing, everything. Way more useful than "it doesn't work."</p>
+      <p>Attached the JSON to the issue. The maintainer gets the full trace &mdash; every message, every response, exact timing. Turned out to be a missing repo scope on the token. Five-minute fix once you can actually see what's happening.</p>
 
-      <h2>How it works</h2>
+      <div class="callout-warn">
+        <p><strong>The pattern is always the same:</strong> <code>doctor</code> to check if it starts, <code>inspect</code> to see what's exposed, <code>proxy</code> to watch the traffic. Between those three I've never hit an MCP issue I couldn't diagnose.</p>
+      </div>
 
-      <p>The core idea is simple: MCP uses JSON-RPC 2.0 over stdio. So mcptools just speaks the same protocol.</p>
+      <h2>Under the hood</h2>
 
-      <p><code>inspect</code> starts the server as a subprocess, runs the MCP handshake, asks for tools/resources/prompts, and formats what comes back. <code>proxy</code> reads from stdin (your IDE), forwards to the server, reads responses, forwards back. Your IDE has no idea it's there &mdash; it's just a pipe in the middle that happens to log everything passing through.</p>
+      <p>MCP uses JSON-RPC 2.0 over stdio. mcptools speaks the same protocol. <code>inspect</code> starts a server subprocess, runs the handshake, queries capabilities, formats the result. <code>proxy</code> reads from stdin (your IDE), forwards to the server, reads responses, forwards back. Your IDE has no idea it's there &mdash; just a pipe in the middle that logs everything passing through.</p>
 
 <pre class="terminal" data-title="Architecture">
 src/mcptools/
@@ -310,7 +284,7 @@ src/mcptools/
 └── tui/dashboard.py    <span class="code-dim"># Real-time TUI</span>
 </pre>
 
-      <p>The whole thing is about 2,500 lines of Python. Nothing fancy. <a href="https://github.com/textualize/textual">Textual</a> for the TUI, <a href="https://github.com/textualize/rich">Rich</a> for the pretty tables, <a href="https://click.palletsprojects.com">Click</a> for the CLI, <a href="https://docs.pydantic.dev">Pydantic</a> for message validation.</p>
+      <p>About 2,500 lines of Python. <a href="https://github.com/textualize/textual">Textual</a> for the TUI, <a href="https://github.com/textualize/rich">Rich</a> for tables, <a href="https://click.palletsprojects.com">Click</a> for CLI, <a href="https://docs.pydantic.dev">Pydantic</a> for validation. Nothing exotic.</p>
 
       <h2>Go try it</h2>
 
@@ -319,7 +293,7 @@ src/mcptools/
 <span class="code-dim">$</span> mcptools doctor
 </pre>
 
-      <p>Either everything's green and you can stop worrying, or you'll find the thing that's been wasting your time. Either way, you'll know in about two seconds.</p>
+      <p>Either everything's green and you stop worrying, or you find the thing that's been silently wasting your time.</p>
 
       <a href="https://github.com/jannik-cas/mcptools" class="article-cta">
         <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -327,7 +301,7 @@ src/mcptools/
       </a>
 
       <div class="article-footer">
-        <p>If something doesn't work or you have an idea, <a href="https://github.com/jannik-cas/mcptools/issues">open an issue</a>. The codebase is small enough to read in an afternoon &mdash; PRs welcome.</p>
+        <p>Something not working? Got an idea? <a href="https://github.com/jannik-cas/mcptools/issues">Open an issue.</a> The codebase is small enough to read in an afternoon &mdash; PRs welcome.</p>
       </div>
 
     </article>
