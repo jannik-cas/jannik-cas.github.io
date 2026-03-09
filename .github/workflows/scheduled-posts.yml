@@ -1,0 +1,49 @@
+name: Publish Scheduled Blog Posts
+
+on:
+  schedule:
+    # Run at 08:00 UTC daily (9:00 CET)
+    - cron: '0 8 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge scheduled post branches
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          today=$(date -u +%Y-%m-%d)
+          echo "Today is $today"
+
+          # Schedule: branch -> publish date
+          declare -A schedule
+          schedule[post/what-is-mcp]="2026-03-10"
+          schedule[post/mcp-and-claude-code]="2026-03-11"
+
+          for branch in "${!schedule[@]}"; do
+            publish_date="${schedule[$branch]}"
+            if [[ "$today" >= "$publish_date" ]]; then
+              if git rev-parse --verify "origin/$branch" >/dev/null 2>&1; then
+                echo "Merging $branch (scheduled for $publish_date)..."
+                git merge "origin/$branch" --no-edit -m "Publish scheduled post from $branch"
+                git push origin main
+                # Delete the branch after merging
+                git push origin --delete "$branch" || true
+                echo "Published $branch"
+              else
+                echo "Branch $branch already merged or doesn't exist, skipping."
+              fi
+            else
+              echo "Not yet time for $branch (scheduled $publish_date, today $today)"
+            fi
+          done
