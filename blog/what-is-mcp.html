@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What Is MCP, Actually? - Dr. Jannik Castenow</title>
+  <meta name="description" content="MCP is the protocol that lets AI assistants use tools. Here's what it actually does, how it works under the hood, and what the messages look like — with real examples you can run.">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta property="og:title" content="What Is MCP, Actually?">
+  <meta property="og:description" content="MCP is the protocol that lets AI assistants use tools. Here's what it actually does, how it works, and what the messages look like.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://jannik-cas.github.io/blog/what-is-mcp.html">
+  <meta property="article:published_time" content="2026-03-10">
+  <meta property="article:author" content="Jannik Castenow">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230f172a' width='100' height='100' rx='12'/><text x='50' y='68' font-family='system-ui,sans-serif' font-size='44' font-weight='700' fill='%2338bdf8' text-anchor='middle'>JC</text></svg>">
+  <link rel="canonical" href="https://jannik-cas.github.io/blog/what-is-mcp.html">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <nav class="blog-nav">
+    <div class="container">
+      <a href="/" class="blog-nav-home">JC</a>
+      <a href="/blog/" class="blog-nav-link">Blog</a>
+    </div>
+  </nav>
+
+  <header class="article-header">
+    <div class="container">
+      <h1>What Is MCP, Actually?</h1>
+      <div class="article-meta">
+        <time>March 10, 2026</time>
+        <span>&middot;</span>
+        <span>10 min read</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <article class="article">
+
+      <p>I keep seeing "MCP" everywhere &mdash; blog posts, GitHub repos, Twitter threads. Half the explanations are marketing fluff. The other half assume you already know what JSON-RPC is. So here's my attempt at the version I wish I'd read six months ago: what MCP actually is, what problem it solves, and what the messages look like on the wire. With real examples you can run yourself.</p>
+
+      <h2>The one-sentence version</h2>
+
+      <p>MCP (Model Context Protocol) is a way for AI assistants to use tools. Your IDE talks to an MCP server over stdin/stdout, and that server can do things &mdash; fetch URLs, read files, query databases, whatever. The AI decides <em>when</em> to call a tool. The MCP server decides <em>how</em> to execute it.</p>
+
+      <h2>Why does this need a protocol?</h2>
+
+      <p>Before MCP, every AI tool integration was bespoke. Want Claude to search the web? Custom plugin. Want it to read your filesystem? Different custom plugin. Want it to talk to your company's API? Build something from scratch.</p>
+
+      <p>The problem isn't building one integration. It's building twenty. And then maintaining them across IDE updates, API changes, and new AI models. It doesn't scale.</p>
+
+      <p>MCP standardizes this. One protocol, one config format, and suddenly the same server works with Claude Desktop, Cursor, VS Code Copilot, and Windsurf. Write it once, use it everywhere.</p>
+
+      <h2>What it looks like in practice</h2>
+
+      <p>You have a JSON config file that tells your IDE which MCP servers to run. Here's a real one:</p>
+
+<pre class="terminal" data-title="~/.claude/claude_desktop_config.json">
+{
+  "<span class="code-cyan">mcpServers</span>": {
+    "<span class="code-green">fetch</span>": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    },
+    "<span class="code-green">github</span>": {
+      "command": "uvx",
+      "args": ["mcp-server-github"],
+      "env": {
+        "GITHUB_TOKEN": "ghp_..."
+      }
+    },
+    "<span class="code-green">filesystem</span>": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/projects"]
+    }
+  }
+}
+</pre>
+
+      <p>Three servers. <code>fetch</code> can grab web pages. <code>github</code> can interact with repos, issues, PRs. <code>filesystem</code> can read and write files in a specific directory. Each one is a separate process that your IDE launches and talks to.</p>
+
+      <p>When you open Claude Desktop (or Cursor, or whatever), it reads this config, starts each server as a subprocess, and runs through a handshake. After that, the AI can call any of these tools when it decides it needs them.</p>
+
+      <h2>The handshake &mdash; what actually happens when a server starts</h2>
+
+      <p>This is the part most explanations skip. Let me show you the actual messages. I'll use <a href="https://github.com/jannik-cas/mcptools">mcptools</a> to inspect a real server, but I'll show you the raw JSON-RPC underneath.</p>
+
+      <p><strong>Step 1:</strong> Your IDE starts the server process and sends an <code>initialize</code> message over stdin:</p>
+
+<pre class="terminal" data-title="IDE &rarr; Server">
+{
+  "<span class="code-dim">jsonrpc</span>": "2.0",
+  "<span class="code-cyan">id</span>": 1,
+  "<span class="code-cyan">method</span>": "<span class="code-green">initialize</span>",
+  "<span class="code-cyan">params</span>": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "claude-desktop",
+      "version": "1.0.0"
+    }
+  }
+}
+</pre>
+
+      <p>This is a JSON-RPC 2.0 request. The <code>id: 1</code> means the IDE expects a response with the same ID. The protocol version tells the server which version of MCP we're speaking.</p>
+
+      <p><strong>Step 2:</strong> The server responds with what it can do:</p>
+
+<pre class="terminal" data-title="Server &rarr; IDE">
+{
+  "<span class="code-dim">jsonrpc</span>": "2.0",
+  "<span class="code-cyan">id</span>": 1,
+  "<span class="code-cyan">result</span>": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": {
+      "<span class="code-green">tools</span>": {},
+      "<span class="code-green">prompts</span>": {}
+    },
+    "serverInfo": {
+      "name": "mcp-fetch",
+      "version": "1.26.0"
+    }
+  }
+}
+</pre>
+
+      <p>The key thing here is <code>capabilities</code>. This server says "I have tools and prompts." It doesn't have resources. So the IDE knows not to ask for resources &mdash; it'll only query what the server actually supports.</p>
+
+      <p><strong>Step 3:</strong> The IDE sends a notification saying "OK, I'm ready":</p>
+
+<pre class="terminal" data-title="IDE &rarr; Server">
+{
+  "<span class="code-dim">jsonrpc</span>": "2.0",
+  "<span class="code-cyan">method</span>": "<span class="code-green">notifications/initialized</span>"
+}
+</pre>
+
+      <p>No <code>id</code> on this one &mdash; it's a notification. Fire and forget. No response expected.</p>
+
+      <p><strong>Step 4:</strong> Now the IDE asks what tools are available:</p>
+
+<pre class="terminal" data-title="IDE &rarr; Server">
+{
+  "<span class="code-dim">jsonrpc</span>": "2.0",
+  "<span class="code-cyan">id</span>": 2,
+  "<span class="code-cyan">method</span>": "<span class="code-green">tools/list</span>"
+}
+</pre>
+
+<pre class="terminal" data-title="Server &rarr; IDE">
+{
+  "<span class="code-dim">jsonrpc</span>": "2.0",
+  "<span class="code-cyan">id</span>": 2,
+  "<span class="code-cyan">result</span>": {
+    "tools": [
+      {
+        "name": "<span class="code-green">fetch</span>",
+        "description": "Fetches a URL from the internet and extracts its contents as markdown.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "url": { "type": "string" },
+            "max_length": { "type": "integer" },
+            "raw": { "type": "boolean" }
+          },
+          "required": ["url"]
+        }
+      }
+    ]
+  }
+}
+</pre>
+
+      <p>That <code>inputSchema</code> is a standard JSON Schema. The AI model reads this and knows: "I can call <code>fetch</code> with a required <code>url</code> string, and optionally <code>max_length</code> and <code>raw</code>." This is how the AI knows what arguments to pass &mdash; it's not guessing, it's reading a schema.</p>
+
+      <h2>When the AI actually calls a tool</h2>
+
+      <p>Later, during a conversation, the AI decides it needs to fetch a webpage. The IDE sends:</p>
+
+<pre class="terminal" data-title="IDE &rarr; Server">
+{
+  "<span class="code-dim">jsonrpc</span>": "2.0",
+  "<span class="code-cyan">id</span>": 3,
+  "<span class="code-cyan">method</span>": "<span class="code-green">tools/call</span>",
+  "<span class="code-cyan">params</span>": {
+    "name": "fetch",
+    "arguments": {
+      "url": "https://example.com"
+    }
+  }
+}
+</pre>
+
+      <p>And the server responds with the content:</p>
+
+<pre class="terminal" data-title="Server &rarr; IDE">
+{
+  "<span class="code-dim">jsonrpc</span>": "2.0",
+  "<span class="code-cyan">id</span>": 3,
+  "<span class="code-cyan">result</span>": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Example Domain\n\nThis domain is for use in illustrative examples..."
+      }
+    ]
+  }
+}
+</pre>
+
+      <p>That's it. Request, response. The AI gets the text back and incorporates it into its answer. The whole thing takes maybe 200ms.</p>
+
+      <h2>The three things a server can expose</h2>
+
+      <p>MCP servers aren't just about tools. There are three types of things a server can offer:</p>
+
+      <p><strong>Tools</strong> are actions. "Fetch this URL." "Create a GitHub issue." "Run this SQL query." The AI decides when to call them. Each tool has a name, description, and a JSON Schema for its parameters.</p>
+
+      <p><strong>Resources</strong> are data. Files, database records, API responses &mdash; things the AI can read. Each resource has a URI (like <code>file:///path/to/doc.txt</code>) and a MIME type. The AI can request specific resources by URI.</p>
+
+      <p><strong>Prompts</strong> are templates. Pre-built prompt fragments that the server provides. A code review server might offer a "review this PR" prompt template that takes a PR URL as an argument. Less common than tools and resources, but useful for standardizing workflows.</p>
+
+      <p>Most servers you'll encounter only implement tools. But the protocol supports all three, and the handshake tells the IDE which ones are available.</p>
+
+      <h2>How transport works</h2>
+
+      <p>MCP currently uses stdio as its main transport. That means:</p>
+
+      <ul>
+        <li>The IDE starts the server as a subprocess</li>
+        <li>Messages go in through the server's <strong>stdin</strong></li>
+        <li>Responses come back through the server's <strong>stdout</strong></li>
+        <li>Each message is one line of JSON, terminated by <code>\n</code></li>
+        <li>The server's stderr is free for logging/debugging (doesn't interfere with the protocol)</li>
+      </ul>
+
+      <p>This is surprisingly elegant. No ports to manage. No HTTP overhead. No authentication needed &mdash; it's all local. The process boundary <em>is</em> the security boundary. And because it's just stdin/stdout, it works with any language: Python, Node, Go, Rust, whatever can read a line and write a line.</p>
+
+      <p>There's also an SSE (Server-Sent Events) transport for remote servers, but most MCP servers today use stdio.</p>
+
+      <h2>Try it yourself</h2>
+
+      <p>You don't need an IDE to see MCP in action. Install <a href="https://github.com/jannik-cas/mcptools">mcptools</a> and point it at any MCP server:</p>
+
+<pre class="terminal" data-title="Terminal">
+<span class="code-dim">$</span> pip install git+https://github.com/jannik-cas/mcptools.git
+
+<span class="code-dim"># See what a server offers</span>
+<span class="code-dim">$</span> mcptools inspect uvx mcp-server-fetch
+
+<span class="code-blue">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; MCP Server &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
+<span class="code-blue">&#9474;</span> <span class="code-bold">mcp-fetch</span> v1.26.0                                    <span class="code-blue">&#9474;</span>
+<span class="code-blue">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</span>
+                           Tools (1)
+  <span class="code-cyan code-bold">Name</span>    Description                    Parameters
+  <span class="code-cyan">fetch</span>   Fetches a URL from the         url: string<span class="code-red">*</span>,
+          internet and extracts its      max_length: integer,
+          contents as markdown.          raw: boolean
+</pre>
+
+      <p>That command just did the full handshake I described above &mdash; <code>initialize</code>, <code>notifications/initialized</code>, <code>tools/list</code> &mdash; and formatted the result. Under the hood, it's the exact same JSON-RPC messages your IDE sends.</p>
+
+      <p>Or check if your existing config is healthy:</p>
+
+<pre class="terminal" data-title="Terminal">
+<span class="code-dim">$</span> mcptools doctor
+
+<span class="code-dim">Config: ~/.claude/claude_desktop_config.json</span>
+
+  Checking fetch...          <span class="code-green">&#10003;</span> 1 tool, 1 prompt
+  Checking github...         <span class="code-green">&#10003;</span> 35 tools
+  Checking filesystem...     <span class="code-green">&#10003;</span> 5 tools, 2 resources
+
+Summary: <span class="code-green">3 healthy</span>
+</pre>
+
+      <p>This starts every server in your config, runs the handshake, counts capabilities, and measures latency. Two seconds and you know if everything works.</p>
+
+      <h2>Where to find MCP servers</h2>
+
+      <p>There are already hundreds of MCP servers out there. Some popular ones:</p>
+
+      <ul>
+        <li><strong>mcp-server-fetch</strong> &mdash; Fetch web pages and extract as markdown</li>
+        <li><strong>mcp-server-github</strong> &mdash; Full GitHub API: repos, issues, PRs, code search</li>
+        <li><strong>mcp-server-filesystem</strong> &mdash; Read/write files in a sandboxed directory</li>
+        <li><strong>mcp-server-time</strong> &mdash; Current time and timezone conversions</li>
+        <li><strong>mcp-server-sqlite</strong> &mdash; Query SQLite databases</li>
+        <li><strong>mcp-server-postgres</strong> &mdash; Query PostgreSQL databases</li>
+      </ul>
+
+      <p>Most are installable with <code>uvx</code> (Python) or <code>npx</code> (Node). The <a href="https://github.com/modelcontextprotocol">modelcontextprotocol GitHub org</a> has the official ones. But anyone can build an MCP server &mdash; it's just a process that reads JSON from stdin and writes JSON to stdout.</p>
+
+      <h2>The mental model</h2>
+
+      <p>If you remember one thing from this post, let it be this:</p>
+
+<pre class="diagram">
+Your IDE
+    <span class="code-cyan">&darr;</span> starts subprocess, sends JSON-RPC over stdin
+MCP Server (just a process)
+    <span class="code-cyan">&darr;</span> responds over stdout
+Your IDE
+    <span class="code-cyan">&darr;</span> gives the response to the AI model
+AI decides what to do next
+</pre>
+
+      <p>That's MCP. A subprocess that speaks JSON-RPC. The AI model sees the tool descriptions, decides when to use them, and the IDE handles the plumbing. The config file tells the IDE which servers to start. The protocol handles the rest.</p>
+
+      <p>Nothing more to it than that. The spec is surprisingly small for how much it enables.</p>
+
+      <div class="article-footer">
+        <p>Next post: <a href="mcp-and-claude-code.html">how MCP works specifically with Claude Code</a> &mdash; the CLI tool, not the desktop app.</p>
+        <p>If you want to see MCP traffic in real time, check out <a href="https://github.com/jannik-cas/mcptools">mcptools</a>.</p>
+      </div>
+
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; 2026 Jannik Castenow</p>
+    </div>
+  </footer>
+</body>
+</html>
