@@ -45,7 +45,7 @@
     <article class="article">
 
       <div class="tldr">
-        <p>MCP has zero observability. When something breaks, you get silence. I built <code>mcptools</code> &mdash; five commands (<code>doctor</code>, <code>inspect</code>, <code>proxy</code>, <code>record</code>, <code>replay</code>) that give you actual visibility into what your MCP servers are doing. One <code>pip install</code>, works with any IDE.</p>
+        <p>MCP has zero observability. When something breaks, you get silence. I built <code>mcptools</code> &mdash; six commands (<code>doctor</code>, <code>inspect</code>, <code>call</code>, <code>proxy</code>, <code>record</code>, <code>replay</code>) that give you actual visibility into what your MCP servers are doing. One <code>pip install</code>, works with any IDE.</p>
       </div>
 
       <p>Last month I lost 45 minutes to a typo. Not a subtle bug. Not a race condition. A typo in an environment variable name. <code>GITHUB_TOKE</code> instead of <code>GITHUB_TOKEN</code>.</p>
@@ -151,6 +151,27 @@ Summary: <span class="code-green">2 healthy</span>, <span class="code-red">1 err
 <span class="code-dim">$</span> mcptools inspect npx @modelcontextprotocol/server-filesystem /tmp
 <span class="code-dim">$</span> mcptools inspect node build/index.js
 </pre>
+
+      <h2><code>mcptools call</code></h2>
+
+      <p>Sometimes you just want to call a tool and see what it returns. No IDE, no config, no proxy &mdash; just a quick sanity check from the terminal.</p>
+
+<pre class="terminal" data-title="Terminal">
+<span class="code-dim">$</span> mcptools call uvx mcp-server-fetch --tool fetch --args '{"url": "https://example.com"}'
+
+<span class="code-green">&#9484;&#9472;&#9472;&#9472;&#9472; fetch &#9472;&#9472;&#9472;&#9472;&#9488;</span>
+<span class="code-green">&#9474;</span> # Example     <span class="code-green">&#9474;</span>
+<span class="code-green">&#9474;</span> Domain        <span class="code-green">&#9474;</span>
+<span class="code-green">&#9474;</span> This domain   <span class="code-green">&#9474;</span>
+<span class="code-green">&#9474;</span> is for use in <span class="code-green">&#9474;</span>
+<span class="code-green">&#9474;</span> illustrative  <span class="code-green">&#9474;</span>
+<span class="code-green">&#9474;</span> examples...   <span class="code-green">&#9474;</span>
+<span class="code-green">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</span>
+</pre>
+
+      <p>It handles the handshake, verifies the tool exists, calls it, and pretty-prints the result. If the response is JSON, you get syntax highlighting. Pass <code>--json</code> for machine-readable output you can pipe to <code>jq</code>.</p>
+
+      <p>This is the fastest way to test whether a tool actually works before you wire it up in your IDE. No guessing, no restarting Claude Desktop, just run it and see.</p>
 
       <h2><code>mcptools proxy</code></h2>
 
@@ -270,11 +291,14 @@ MCP Server
 
 <pre class="terminal" data-title="Architecture">
 src/mcptools/
-├── cli.py              <span class="code-dim"># Click CLI &mdash; 5 commands</span>
+├── cli.py              <span class="code-dim"># Click CLI &mdash; 6 commands</span>
 ├── jsonrpc.py          <span class="code-dim"># Shared JSON-RPC helpers</span>
-├── config/parser.py    <span class="code-dim"># Auto-detects IDE configs</span>
+├── handshake.py        <span class="code-dim"># MCP init handshake &amp; error helpers</span>
+├── config/parser.py    <span class="code-dim"># Auto-detects IDE configs &amp; server selection</span>
 ├── doctor/checks.py    <span class="code-dim"># Concurrent health checks</span>
-├── inspect/server.py   <span class="code-dim"># Server introspection</span>
+├── inspect/
+│   ├── server.py       <span class="code-dim"># Server introspection</span>
+│   └── caller.py       <span class="code-dim"># Direct tool invocation</span>
 ├── proxy/
 │   ├── interceptor.py  <span class="code-dim"># Traffic interception</span>
 │   └── transport.py    <span class="code-dim"># Stdio transport layer</span>
