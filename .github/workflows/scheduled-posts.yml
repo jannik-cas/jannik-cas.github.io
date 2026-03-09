@@ -27,8 +27,8 @@ jobs:
 
           # Schedule: branch -> publish date
           declare -A schedule
-          schedule[post/what-is-mcp]="2026-03-10"
-          schedule[post/mcp-and-claude-code]="2026-03-11"
+          schedule[post/what-is-mcp]="2026-03-16"
+          schedule[post/mcp-and-claude-code]="2026-03-23"
 
           for branch in "${!schedule[@]}"; do
             publish_date="${schedule[$branch]}"
