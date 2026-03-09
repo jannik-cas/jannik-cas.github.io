@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MCP and Claude Code: What's Happening Under the Hood - Dr. Jannik Castenow</title>
-  <meta name="description" content="Claude Code uses MCP servers to read files, run commands, and search code. Here's exactly how that works, how to configure it, and how to debug it when things break.">
+  <meta name="description" content="Claude Code uses MCP servers to fetch pages, query APIs, and interact with external tools. Here's how the tool calls flow, where the config lives, how to add your own server, and how to debug when things break.">
   <meta name="theme-color" content="#0f172a">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta property="og:title" content="MCP and Claude Code: What's Happening Under the Hood">
   <meta property="og:description" content="Claude Code uses MCP to talk to external tools. Here's what that actually looks like, how to set it up, and how to debug it.">
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://jannik-cas.github.io/blog/mcp-and-claude-code.html">
-  <meta property="article:published_time" content="2026-03-11">
+  <meta property="article:published_time" content="2026-03-23">
   <meta property="article:author" content="Jannik Castenow">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230f172a' width='100' height='100' rx='12'/><text x='50' y='68' font-family='system-ui,sans-serif' font-size='44' font-weight='700' fill='%2338bdf8' text-anchor='middle'>JC</text></svg>">
   <link rel="canonical" href="https://jannik-cas.github.io/blog/mcp-and-claude-code.html">
@@ -32,7 +32,7 @@
     <div class="container">
       <h1>MCP and Claude Code: What's Happening Under the Hood</h1>
       <div class="article-meta">
-        <time>March 11, 2026</time>
+        <time>March 23, 2026</time>
         <span>&middot;</span>
         <span>9 min read</span>
       </div>
@@ -42,30 +42,43 @@
   <main id="main" class="container">
     <article class="article">
 
-      <p>In my <a href="what-is-mcp.html">last post</a> I explained what MCP is &mdash; the protocol that lets AI assistants call tools. Today I want to get specific about one tool I use daily: Claude Code, Anthropic's CLI agent. It leans heavily on MCP, and understanding that connection has changed how I work with it.</p>
+      <div class="tldr">
+        <p>Claude Code is an MCP client. It reads your config, launches server processes, and gives the model access to their tools alongside built-in ones like <code>Read</code> and <code>Bash</code>. The model doesn't distinguish between them &mdash; a tool is a tool. This post covers the tool call flow, config setup, debugging, and building your own server.</p>
+      </div>
 
-      <p>This isn't a Claude Code tutorial. It's about what happens between Claude Code and MCP servers &mdash; how the tool calls flow, where the config lives, and how to figure out what's going wrong when a tool isn't working.</p>
+      <p>I wrote about <a href="what-is-mcp.html">what MCP is</a> last week. Today I want to get specific about the tool I actually use it with every day: Claude Code, Anthropic's CLI agent.</p>
 
-      <h2>Claude Code is an MCP client</h2>
+      <p>Claude Code leans on MCP more than most people realize. Understanding that connection &mdash; what gets sent where, what can go wrong, how to fix it &mdash; has changed how I work with it. Less "why isn't this working," more "ah, the GitHub server is timing out again, let me check the token."</p>
 
-      <p>When you run <code>claude</code> in your terminal, you're starting an MCP client. It reads your MCP config, launches server processes, does the JSON-RPC handshake I described in my last post, and then &mdash; here's the key part &mdash; it gives the model access to all those tools alongside its built-in ones.</p>
+      <h2>Claude Code as an MCP client</h2>
 
-      <p>So when Claude Code reads a file, runs a shell command, or searches your codebase, some of those actions go through MCP. The model sees a combined list of tools: built-in ones (like <code>Read</code>, <code>Edit</code>, <code>Bash</code>) plus whatever your MCP servers expose.</p>
+      <p>When you run <code>claude</code> in your terminal, you're starting an MCP client. It reads your config, launches server processes, runs the JSON-RPC handshake, and then feeds all discovered tools to the model alongside its built-in toolkit.</p>
 
-      <p>From the model's perspective, there's no difference. A tool is a tool. It has a name, a description, and parameters. Whether it's built into Claude Code or comes from an MCP server, the model calls it the same way.</p>
+      <p>So Claude Code's tool list looks something like:</p>
 
-      <h2>Where Claude Code looks for MCP config</h2>
+<pre class="terminal" data-title="What the model sees">
+<span class="code-dim">Built-in:</span>  Read, Edit, Write, Bash, Glob, Grep, Agent, ...
+<span class="code-cyan">From MCP:</span>  fetch, list_issues, create_pr, search_code, ...
+</pre>
 
-      <p>Claude Code checks several locations for MCP server configuration:</p>
+      <p>The model doesn't know which are built-in and which come from MCP. It sees a flat list of tools, each with a name, description, and parameter schema. It picks the right one based on what you're asking it to do. A <code>fetch</code> from an MCP server and a <code>Read</code> from the built-in toolkit are, from the model's perspective, the same kind of thing.</p>
 
-<pre class="terminal" data-title="Config locations (checked in order)">
-~/.claude/claude_desktop_config.json      <span class="code-dim"># shared with Claude Desktop</span>
+      <div class="aside">
+        <p>This is actually clever. It means you can extend Claude Code's capabilities without forking it, without writing plugins, without any special API. Just add a server to a JSON config file and restart. The model figures out the rest.</p>
+      </div>
+
+      <h2>Where the config lives</h2>
+
+      <p>Claude Code checks these locations:</p>
+
+<pre class="terminal" data-title="Config paths">
+~/.claude/claude_desktop_config.json
 ~/Library/Application Support/Claude/claude_desktop_config.json  <span class="code-dim"># macOS</span>
 </pre>
 
-      <p>The config format is the same one Claude Desktop uses. If you've already set up MCP servers for Claude Desktop, Claude Code picks them up automatically. No extra configuration.</p>
+      <p>Same file Claude Desktop uses. If you've set up MCP servers for the desktop app, Claude Code picks them up automatically. No duplication.</p>
 
-      <p>Here's a real config I use daily:</p>
+      <p>Here's my daily driver config:</p>
 
 <pre class="terminal" data-title="~/.claude/claude_desktop_config.json">
 {
@@ -85,19 +98,15 @@
 }
 </pre>
 
-      <p>Two servers. When Claude Code starts, it launches both as subprocesses, does the MCP handshake with each, and the model gets access to their tools.</p>
+      <p>Two servers. When I run <code>claude</code>, both launch as subprocesses, handshake completes, and the model gets <code>fetch</code> plus all ~35 GitHub tools.</p>
 
-      <h2>What the tool call flow looks like</h2>
+      <h2>A tool call, start to finish</h2>
 
-      <p>Say you're in Claude Code and you ask: "Look up the latest issues on the mcptools repo."</p>
+      <p>Say I ask Claude Code: "What are the open issues on the mcptools repo?"</p>
 
-      <p>Here's what actually happens:</p>
+      <p>The model sees <code>list_issues</code> in its tool list (from the GitHub MCP server) and decides to call it. Here's the JSON-RPC that flows between Claude Code and the MCP server:</p>
 
-      <p><strong>1.</strong> The model sees the GitHub MCP server's tools in its tool list. One of them is probably called <code>list_issues</code> or <code>search_issues</code>.</p>
-
-      <p><strong>2.</strong> The model decides to call it and generates the arguments:</p>
-
-<pre class="terminal" data-title="Claude Code &rarr; MCP Server (via stdin)">
+<pre class="terminal" data-title="Claude Code &rarr; MCP Server (stdin)">
 {
   "<span class="code-dim">jsonrpc</span>": "2.0",
   "<span class="code-cyan">id</span>": 42,
@@ -113,9 +122,7 @@
 }
 </pre>
 
-      <p><strong>3.</strong> The MCP server (mcp-server-github) receives this, calls the GitHub API with your token, and returns:</p>
-
-<pre class="terminal" data-title="MCP Server &rarr; Claude Code (via stdout)">
+<pre class="terminal" data-title="MCP Server &rarr; Claude Code (stdout)">
 {
   "<span class="code-dim">jsonrpc</span>": "2.0",
   "<span class="code-cyan">id</span>": 42,
@@ -130,21 +137,18 @@
 }
 </pre>
 
-      <p><strong>4.</strong> Claude Code feeds this back to the model, which formats a nice answer for you.</p>
+      <p>The MCP server receives the call, hits the GitHub API with my token, wraps the response in JSON-RPC format, and sends it back. Claude Code feeds this to the model, which formats a nice answer. ~500ms end to end. I just see the answer in my terminal. All the plumbing is invisible.</p>
 
-      <p>The whole round-trip is maybe 500ms. You just see the response in your terminal. The JSON-RPC, the subprocess, the GitHub API call &mdash; all invisible unless you go looking for it.</p>
+      <h2>Adding a server</h2>
 
-      <h2>Adding an MCP server to Claude Code</h2>
+      <p>This is genuinely a two-step process. Edit the config, restart Claude Code.</p>
 
-      <p>Let's say you want Claude Code to be able to fetch web pages. Here's the setup, start to finish:</p>
+      <p>Want Claude Code to fetch web pages? Add this to your config:</p>
 
-      <p><strong>Step 1:</strong> Add the server to your config:</p>
-
-<pre class="terminal" data-title="Terminal">
-<span class="code-dim">$</span> cat ~/.claude/claude_desktop_config.json
+<pre class="terminal" data-title="~/.claude/claude_desktop_config.json">
 {
   "mcpServers": {
-    "fetch": {
+    "<span class="code-green">fetch</span>": {
       "command": "uvx",
       "args": ["mcp-server-fetch"]
     }
@@ -152,9 +156,9 @@
 }
 </pre>
 
-      <p><strong>Step 2:</strong> Restart Claude Code. That's it. Next time you start <code>claude</code>, it'll launch the fetch server and the model will have a <code>fetch</code> tool available.</p>
+      <p>Restart <code>claude</code>. Done. The model now has a <code>fetch</code> tool. Ask it to "grab the content of https://example.com" and it'll use it.</p>
 
-      <p><strong>Step 3:</strong> Verify it works:</p>
+      <p>Verify before you rely on it:</p>
 
 <pre class="terminal" data-title="Terminal">
 <span class="code-dim">$</span> mcptools doctor --config ~/.claude/claude_desktop_config.json
@@ -164,51 +168,55 @@
   Checking fetch...  <span class="code-green">&#10003;</span> 1 tool, 1 prompt
 </pre>
 
-      <p>Green checkmark. The server starts, responds to MCP, and exposes one tool and one prompt. You're good.</p>
+      <div class="callout-success">
+        <p><strong>Pro tip:</strong> Run <code>mcptools doctor</code> after every config change. Takes two seconds and saves you from the "why is this tool not showing up" spiral.</p>
+      </div>
 
-      <p>Now in Claude Code you can say "fetch the content of https://example.com" and the model will use the MCP tool to do it.</p>
+      <h2>When things break (and they will)</h2>
 
-      <h2>When things break</h2>
+      <p>MCP failures in Claude Code are silent. A server that doesn't start? The tool just doesn't appear. Wrong token? The server starts but fails at call time &mdash; and the model quietly moves on without telling you it tried and failed.</p>
 
-      <p>This is the part that matters in practice. MCP tools in Claude Code fail silently. If a server doesn't start, or the token is wrong, or there's a timeout &mdash; you just don't see the tool. The model doesn't mention it. It's just... not there.</p>
-
-      <p>I've hit all of these:</p>
+      <p>I've hit all of these, some more than once:</p>
 
       <ul>
-        <li><strong>Tool not showing up:</strong> The server command is wrong, or the binary isn't installed. <code>mcptools doctor</code> catches this instantly.</li>
-        <li><strong>Tool shows up but fails:</strong> Usually a missing or expired token. The MCP server starts fine but chokes when it tries to call the external API. Use <code>mcptools proxy --no-tui</code> to watch the traffic and see the error response.</li>
-        <li><strong>Tool is slow:</strong> Some servers (looking at you, GitHub with 35 tools) take 3+ seconds to initialize. <code>mcptools doctor</code> warns you about this.</li>
-        <li><strong>Wrong arguments:</strong> The model sometimes generates arguments that don't match the schema. <code>mcptools inspect</code> shows you the exact schema so you can tell if the model is calling it correctly.</li>
+        <li><strong>Tool not showing up</strong> &mdash; Server command is wrong, or the binary isn't in PATH. I once spent 20 minutes before realizing I'd typed <code>uvx mcp-server-gitub</code>. No error. Just... no tools.</li>
+        <li><strong>Tool exists but fails</strong> &mdash; Usually a bad or expired token. Server starts fine, handshake works, but it chokes when it actually tries to call an API.</li>
+        <li><strong>Tool is slow</strong> &mdash; The GitHub server takes 3+ seconds to initialize. 35 tools is a lot of schema to negotiate. If Claude Code feels sluggish at startup, check how many MCP tools you're loading.</li>
+        <li><strong>Wrong arguments from the model</strong> &mdash; Sometimes the model generates parameters that don't match the schema. Rare, but happens with complex tools. Check the schema with <code>mcptools inspect</code>.</li>
       </ul>
 
-      <p>The debugging workflow I've settled on:</p>
+      <p>My debugging workflow, every time:</p>
 
-<pre class="terminal" data-title="Terminal">
-<span class="code-dim"># 1. Is the server healthy?</span>
+<pre class="terminal" data-title="The three-step diagnosis">
+<span class="code-dim"># 1. Does the server even start?</span>
 <span class="code-dim">$</span> mcptools doctor --config ~/.claude/claude_desktop_config.json
 
-<span class="code-dim"># 2. What tools does it actually expose?</span>
+<span class="code-dim"># 2. What tools does it expose? What are the parameter types?</span>
 <span class="code-dim">$</span> mcptools inspect uvx mcp-server-github
 
-<span class="code-dim"># 3. Watch the live traffic</span>
+<span class="code-dim"># 3. Watch the actual traffic flow</span>
 <span class="code-dim">$</span> mcptools proxy --config ~/.claude/claude_desktop_config.json --server github --no-tui
 </pre>
 
-      <p>Step 1 tells you if the server starts. Step 2 tells you what it offers. Step 3 shows you exactly what messages are flowing through. Between the three, I've never had an MCP issue I couldn't diagnose.</p>
+      <p>Step 1 catches dead servers. Step 2 shows you what's actually exposed (vs what you think is exposed). Step 3 shows you every message in real time &mdash; if the server returns an error, you'll see it. Between these three, I've diagnosed everything I've hit so far.</p>
 
-      <h2>MCP servers I actually use with Claude Code</h2>
+      <div class="callout-warn">
+        <p><strong>Common trap:</strong> You add a server to your config but forget to restart Claude Code. The config is only read at startup. No hot-reloading.</p>
+      </div>
 
-      <p>After a few months of using Claude Code with various MCP servers, here's what stuck:</p>
+      <h2>MCP servers I actually use</h2>
 
-      <p><strong>mcp-server-fetch</strong> &mdash; The most useful one. Lets Claude grab documentation, check URLs, pull in context from the web. I use this daily.</p>
+      <p>After a few months, here's what stuck in my daily rotation:</p>
 
-      <p><strong>mcp-server-github</strong> &mdash; Creates issues, reads PRs, searches code across repos. Slow to start (35 tools is a lot) but powerful once it's running. I mostly use it for "check the open issues on this repo" type tasks.</p>
+      <p><strong>mcp-server-fetch</strong> is the most useful MCP server, full stop. Claude Code can grab documentation, check URLs, pull in context from the web mid-conversation. I use it multiple times a day. If you only install one server, make it this one.</p>
 
-      <p><strong>Custom project servers</strong> &mdash; I've written a couple of small MCP servers specific to my work. One queries our internal documentation. Another talks to a staging API. The beauty of MCP is that a server is just a script that reads stdin and writes stdout &mdash; you can build one in an afternoon.</p>
+      <p><strong>mcp-server-github</strong> is powerful but heavy. 35 tools, slow init. I use it for "check the open issues" and "look at this PR" type tasks. Worth having if you're doing a lot of GitHub work in Claude Code.</p>
 
-      <h2>Building a simple MCP server (5-minute version)</h2>
+      <p><strong>Custom project servers</strong> are where it gets interesting. I've written a couple of small ones &mdash; one that queries our internal docs, another that pokes a staging API. Each one was maybe an afternoon of work. Which brings me to...</p>
 
-      <p>If you want Claude Code to do something specific, you can build an MCP server in about 50 lines of Python. Here's the skeleton:</p>
+      <h2>Writing your own server</h2>
+
+      <p>An MCP server is ~50 lines of Python. Here's a real, working one:</p>
 
 <pre class="terminal" data-title="my_server.py">
 <span class="code-dim">from</span> mcp.server <span class="code-dim">import</span> Server
@@ -245,6 +253,8 @@ app = Server(<span class="code-green">"my-server"</span>)
 asyncio.run(main())
 </pre>
 
+      <p>Yes, the example is silly. But swap <code>greet</code> with "query our staging database" or "search our internal wiki" and you've got something genuinely useful. The MCP SDK handles all the JSON-RPC plumbing. You just define tools and implement them.</p>
+
       <p>Add it to your config:</p>
 
 <pre class="terminal" data-title="~/.claude/claude_desktop_config.json">
@@ -258,9 +268,7 @@ asyncio.run(main())
 }
 </pre>
 
-      <p>Restart Claude Code, and you can say "greet Jannik" and the model will call your MCP server. Obviously this example is silly, but replace <code>greet</code> with "query our internal API" or "search our docs database" and it gets useful fast.</p>
-
-      <p>You can verify it works before even opening Claude Code:</p>
+      <p>Test it before opening Claude Code:</p>
 
 <pre class="terminal" data-title="Terminal">
 <span class="code-dim">$</span> mcptools inspect python my_server.py
@@ -273,17 +281,21 @@ asyncio.run(main())
   <span class="code-cyan">greet</span>   Say hello to someone     name: string<span class="code-red">*</span>
 </pre>
 
-      <h2>The bigger picture</h2>
+      <p>Green. Works. Restart Claude Code and you can say "greet Jannik" and it'll call your server.</p>
 
-      <p>What I find most interesting about MCP in Claude Code isn't the protocol itself &mdash; it's what it enables. Before MCP, if I wanted Claude Code to interact with something custom, I had to describe it in the prompt and hope for the best. Now I can give it actual tools that do real things, and it figures out when to use them.</p>
+      <div class="key-point">
+        The gap between "AI that talks about your code" and "AI that interacts with your systems" is a JSON config file and a 50-line Python script.
+      </div>
 
-      <p>The gap between "AI that can talk about your code" and "AI that can interact with your systems" is exactly what MCP fills. And because it's a standard protocol, any server you build works with any MCP client &mdash; not just Claude Code, but also Claude Desktop, Cursor, and anything else that supports MCP.</p>
+      <h2>What I'd do next</h2>
 
-      <p>If you're using Claude Code and haven't set up any MCP servers yet, start with <code>mcp-server-fetch</code>. It takes two minutes and the difference is noticeable immediately.</p>
+      <p>If you're using Claude Code and haven't touched MCP yet, start with <code>mcp-server-fetch</code>. Two minutes to set up. Noticeable difference immediately &mdash; suddenly Claude can look things up instead of guessing from training data.</p>
+
+      <p>If you want to go further, think about what repetitive tasks you do that involve an API or a data source. Querying a database. Checking deployment status. Searching internal docs. Each of those is a potential MCP server, and they're small enough to build in an afternoon.</p>
 
       <div class="article-footer">
         <p>Previous: <a href="what-is-mcp.html">What Is MCP, Actually?</a> &mdash; the protocol explainer.</p>
-        <p>For debugging MCP servers, check out <a href="https://github.com/jannik-cas/mcptools">mcptools</a>. See also: <a href="mcptools-mitmproxy-for-mcp.html">I Built mitmproxy for MCP</a>.</p>
+        <p>For debugging, check out <a href="https://github.com/jannik-cas/mcptools">mcptools</a>. See also: <a href="mcptools-mitmproxy-for-mcp.html">I Built mitmproxy for MCP</a>.</p>
       </div>
 
     </article>
