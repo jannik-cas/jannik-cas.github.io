@@ -32,7 +32,7 @@ jobs:
 
           for branch in "${!schedule[@]}"; do
             publish_date="${schedule[$branch]}"
-            if [[ "$today" >= "$publish_date" ]]; then
+            if [[ ! "$today" < "$publish_date" ]]; then
               if git rev-parse --verify "origin/$branch" >/dev/null 2>&1; then
                 echo "Merging $branch (scheduled for $publish_date)..."
                 git merge "origin/$branch" --no-edit -m "Publish scheduled post from $branch"
