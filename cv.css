@@ -128,16 +128,6 @@ ul {
   color: var(--accent);
 }
 
-.cv-honorific {
-  display: block;
-  margin-bottom: 1mm;
-  font-family: var(--sans);
-  font-size: 9pt;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
 .cv-contact {
   display: flex;
   flex-wrap: wrap;
