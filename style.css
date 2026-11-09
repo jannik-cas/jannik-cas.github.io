@@ -39,6 +39,7 @@
 
   --wrap: 1120px;
   --label-col: 12rem;
+  --meta-col: 9.5rem;
   --gap: clamp(1.5rem, 4vw, 4rem);
 }
 
@@ -280,12 +281,13 @@ ol {
   filter: none;
 }
 
-/* Content blocks: label column + body column */
+/* Content blocks. Every section uses the same two columns: label and body. */
 
 .block,
 .contact {
   display: grid;
   grid-template-columns: var(--label-col) 1fr;
+  align-items: baseline;
   gap: var(--gap);
   padding-top: 2.5rem;
   padding-bottom: 3.5rem;
@@ -298,7 +300,6 @@ ol {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
-  padding-top: 0.35rem;
 }
 
 .body {
@@ -329,29 +330,39 @@ h3 {
   color: var(--ink);
 }
 
-/* Experience and education entries */
+/* Rows. All lists with metadata share one sub-grid: meta column and content column. */
 
-.entry {
+.rows > li,
+.rows > div {
   display: grid;
-  grid-template-columns: 7.5rem 1fr;
+  grid-template-columns: var(--meta-col) 1fr;
+  align-items: baseline;
   gap: 1.5rem;
-  padding: 1.25rem 0;
+  padding: 1.1rem 0;
   border-bottom: 1px solid var(--rule);
 }
 
-.entry:first-child {
+.rows > :first-child {
   padding-top: 0;
 }
 
-.entry:last-child {
+.rows > :last-child {
   border-bottom: 0;
 }
 
-.entry-date {
-  padding-top: 0.3rem;
+.meta,
+.rows dt {
   font-size: 0.875rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+.rows dt {
+  font-weight: 500;
+}
+
+.rows dd {
+  color: var(--ink-2);
 }
 
 .entry-org {
@@ -360,31 +371,28 @@ h3 {
   font-weight: 500;
 }
 
-.entry p:not(.entry-org):not(.entry-date) {
+.entry p:not(.entry-org):not(.meta) {
   color: var(--ink-2);
   max-width: 40rem;
 }
 
-/* Projects */
-
-.projects li + li {
-  border-top: 1px solid var(--rule);
+.stack > div,
+.talks > li,
+.certs > li {
+  padding: 0.75rem 0;
 }
+
+/* Projects */
 
 .project {
   display: grid;
   gap: 0.25rem;
-  padding: 1.25rem 0;
   text-decoration: none;
-}
-
-.projects li:first-child .project {
-  padding-top: 0;
 }
 
 .project-name {
   font-family: var(--serif);
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   line-height: 1.2;
   letter-spacing: -0.015em;
 }
@@ -407,95 +415,7 @@ h3 {
   color: var(--ink-2);
 }
 
-.project:hover .project-desc {
-  color: var(--ink-2);
-}
-
-.project-meta {
-  font-size: 0.8rem;
-  color: var(--muted);
-  letter-spacing: 0.02em;
-}
-
-/* Focus */
-
-.focus-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2rem 2.5rem;
-}
-
-.focus-grid h3 {
-  font-size: 1.2rem;
-  margin-bottom: 0.35rem;
-}
-
-.focus-grid p {
-  color: var(--ink-2);
-  font-size: 0.95rem;
-}
-
-/* Stack */
-
-.stack div {
-  display: grid;
-  grid-template-columns: 11rem 1fr;
-  gap: 1.5rem;
-  padding: 0.85rem 0;
-  border-bottom: 1px solid var(--rule);
-}
-
-.stack div:first-child {
-  padding-top: 0;
-}
-
-.stack div:last-child {
-  border-bottom: 0;
-}
-
-.stack dt {
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.stack dd {
-  color: var(--ink-2);
-}
-
 /* Publications */
-
-.pubs {
-  counter-reset: pub 14;
-}
-
-.pubs li {
-  position: relative;
-  counter-increment: pub -1;
-  padding: 1rem 0 1rem 3rem;
-  border-bottom: 1px solid var(--rule);
-}
-
-.pubs li:first-child {
-  padding-top: 0;
-}
-
-.pubs li:last-child {
-  border-bottom: 0;
-}
-
-.pubs li::before {
-  content: counter(pub, decimal-leading-zero);
-  position: absolute;
-  left: 0;
-  top: 1.2rem;
-  font-size: 0.8rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.pubs li:first-child::before {
-  top: 0.2rem;
-}
 
 .pub-title {
   font-family: var(--serif);
@@ -517,61 +437,20 @@ h3 {
   color: var(--ink-2);
 }
 
-/* Talks */
+/* Talks and certificates */
 
 .talks {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0 2.5rem;
-  margin-top: 1rem;
+  margin-top: 1.25rem;
 }
 
-.talks li {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--rule);
-  font-size: 0.95rem;
-}
-
-.talks li span:first-child {
+.talks strong {
   font-weight: 500;
-}
-
-.talks li span:last-child {
-  color: var(--muted);
-  text-align: right;
-}
-
-/* Certificates */
-
-.certs li {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--rule);
-}
-
-.certs li:first-child {
-  padding-top: 0;
-}
-
-.certs li:last-child {
-  border-bottom: 0;
 }
 
 .certs a {
   font-family: var(--serif);
   font-size: 1.15rem;
   text-decoration: none;
-}
-
-.certs span {
-  color: var(--muted);
-  font-size: 0.875rem;
-  white-space: nowrap;
 }
 
 /* Contact */
@@ -648,11 +527,6 @@ h3 {
   .contact .label {
     grid-row: auto;
   }
-
-  .focus-grid,
-  .talks {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 640px) {
@@ -670,22 +544,9 @@ h3 {
     width: 7rem;
   }
 
-  .entry,
-  .stack div {
+  .rows > li,
+  .rows > div {
     grid-template-columns: 1fr;
-    gap: 0.25rem;
-  }
-
-  .entry-date {
-    padding-top: 0;
-  }
-
-  .pubs li {
-    padding-left: 2.25rem;
-  }
-
-  .certs li {
-    flex-direction: column;
-    gap: 0;
+    gap: 0.15rem;
   }
 }
