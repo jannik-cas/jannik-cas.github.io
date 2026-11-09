@@ -91,7 +91,7 @@ ul {
 .cv-head {
   display: grid;
   grid-template-columns: 1fr auto;
-  align-items: end;
+  align-items: center;
   gap: 8mm;
   padding-bottom: 6mm;
   border-bottom: 1.5pt solid var(--ink);
@@ -122,6 +122,7 @@ ul {
 }
 
 .cv-head h1 em {
+  display: block;
   color: var(--accent);
 }
 
@@ -146,8 +147,8 @@ ul {
 
 .cv-photo {
   display: block;
-  width: 28mm;
-  height: 28mm;
+  width: 40mm;
+  height: 40mm;
   border-radius: 50%;
   object-fit: cover;
   filter: grayscale(1) contrast(1.05);
